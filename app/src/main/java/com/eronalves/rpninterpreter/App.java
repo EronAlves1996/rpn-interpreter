@@ -3,12 +3,158 @@
  */
 package com.eronalves.rpninterpreter;
 
+import java.util.Arrays;
+import java.util.List;
+import java.util.Scanner;
+import java.util.Stack;
+
 public class App {
-    public String getGreeting() {
-        return "Hello World!";
+
+  private abstract static class Token {
+
+    private abstract static class Operand extends Token {
+
+      private static class Plus extends Operand {
+
+        @Override
+        public void apply(Stack<Number> operands) {
+          Number operand1 = operands.pop();
+          Number operand2 = operands.pop();
+          long result = operand1.longValue() + operand2.longValue();
+          System.out.println(operand1 + " + " + operand2 + " = " + result);
+          operands.push(result);
+        }
+
+      }
+
+      private static class Minus extends Operand {
+
+        @Override
+        public void apply(Stack<Number> operands) {
+          Number operand1 = operands.pop();
+          Number operand2 = operands.pop();
+          long result = operand1.longValue() - operand2.longValue();
+          System.out.println(operand1 + " - " + operand2 + " = " + result);
+          operands.push(result);
+        }
+
+      }
+
+      private static class Divide extends Operand {
+
+        @Override
+        public void apply(Stack<Number> operands) {
+          Number operand1 = operands.pop();
+          Number operand2 = operands.pop();
+          long result = operand1.longValue() / operand2.longValue();
+          System.out.println(operand1 + " / " + operand2 + " = " + result);
+          operands.push(result);
+        }
+
+      }
+
+      private static class Multiply extends Operand {
+
+        @Override
+        public void apply(Stack<Number> operands) {
+          Number operand1 = operands.pop();
+          Number operand2 = operands.pop();
+          long result = operand1.longValue() * operand2.longValue();
+          System.out.println(operand1 + " * " + operand2 + " = " + result);
+          operands.push(result);
+        }
+
+      }
+
+      public static Operand of(String unparsed) {
+        return switch (unparsed) {
+          case "+" -> new Plus();
+          case "-" -> new Minus();
+          case "*" -> new Multiply();
+          case "/" -> new Divide();
+          default -> throw new IllegalArgumentException(
+              "Invalid operator type");
+        };
+      }
+
+      @Override
+      public void evaluate(Stack<Number> operands) {
+        if (operands.size() < 2) {
+          throw new IllegalStateException("Operand stack is less than 2 items");
+        }
+
+        this.apply(operands);
+      }
+
+      public abstract void apply(Stack<Number> operands);
+
     }
 
-    public static void main(String[] args) {
-        System.out.println(new App().getGreeting());
+    public static class Numeric extends Token {
+
+      Number value;
+
+      public Numeric(String numericString) {
+        this.value = Long.valueOf(numericString);
+      }
+
+      @Override
+      public void evaluate(Stack<Number> operands) {
+        operands.push(this.value);
+      }
+
     }
+
+    public static Token of(String unparsed) {
+      // operands haves exactly one char
+      if (List.of("+", "-", "*", "/").contains(unparsed)
+          && unparsed.length() == 1) {
+        return Operand.of(unparsed);
+      }
+
+      // is numeric
+      if (unparsed.matches("\\d+")) {
+        return new Numeric(unparsed);
+      }
+
+      throw new RuntimeException("Invalid Token = '" + unparsed + "'");
+    }
+
+    public abstract void evaluate(Stack<Number> operands);
+
+  }
+
+  private Stack<Number> operands;
+
+  public App(Stack<Number> operands) {
+    this.operands = operands;
+  }
+
+  public static void main(String[] args) {
+    System.out.println("Initializing interpreter");
+    App app = new App(new Stack<>());
+    System.out.println("Initialized!");
+    System.out.println("Input some numbers here with a postfix operator!");
+    app.startLoop();
+  }
+
+  private void startLoop() {
+    try (Scanner scanner = new Scanner(System.in)) {
+      while (true) {
+        String line = scanner.nextLine();
+        this.interpret(line);
+      }
+    }
+  }
+
+  private void interpret(String line) {
+    Arrays.stream(line.split(" "))
+        .map(this::produceToken)
+        .forEach(t -> t.evaluate(this.operands));
+  }
+
+  private Token produceToken(String unparsed) {
+    return Token.of(unparsed);
+  }
+
 }
